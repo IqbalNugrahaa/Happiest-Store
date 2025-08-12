@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Edit, Trash2, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react"
+import { Edit, Trash2, Search, Filter, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react"
 import { formatCurrency } from "@/utils/currency"
 import { useLanguage } from "@/contexts/language-context"
 
@@ -25,8 +25,11 @@ interface ProductTableProps {
   products: Product[]
   onUpdate: (id: string, updatedData: Partial<Product>) => void
   onDelete: (id: string) => void
-  onBulkDelete: (ids: string[]) => void // Add bulk delete prop
+  onBulkDelete: (ids: string[]) => void
 }
+
+type SortField = "name" | "type" | "price" | "createdAt"
+type SortDirection = "asc" | "desc"
 
 export function ProductTable({ products, onUpdate, onDelete, onBulkDelete }: ProductTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
@@ -35,9 +38,24 @@ export function ProductTable({ products, onUpdate, onDelete, onBulkDelete }: Pro
   const [editData, setEditData] = useState<Partial<Product>>({})
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
-  const [selectedIds, setSelectedIds] = useState<string[]>([]) // Add selection state
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [sortField, setSortField] = useState<SortField>("name")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
 
-  const productTypes = Array.from(new Set(products.map((p) => p.type)))
+  const productTypes = [
+    "SHARING",
+    "SHARING BIASA",
+    "SHARING ANTILIMIT",
+    "SHARING 8U",
+    "SHARING 4U",
+    "SHARING 2U",
+    "PRIVATE",
+    "SOSMED",
+    "EDUCATION",
+    "MUSIC",
+    "EDITING",
+    "GOOGLE STORAGE",
+  ].sort((a, b) => a.localeCompare(b))
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
@@ -47,32 +65,87 @@ export function ProductTable({ products, onUpdate, onDelete, onBulkDelete }: Pro
     return matchesSearch && matchesType
   })
 
-  const totalPages = Math.ceil(filteredProducts.length / pageSize)
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    let aValue: string | number | Date
+    let bValue: string | number | Date
+
+    switch (sortField) {
+      case "name":
+        aValue = a.name.toLowerCase()
+        bValue = b.name.toLowerCase()
+        break
+      case "type":
+        aValue = a.type.toLowerCase()
+        bValue = b.type.toLowerCase()
+        break
+      case "price":
+        aValue = a.price
+        bValue = b.price
+        break
+      case "createdAt":
+        aValue = a.createdAt
+        bValue = b.createdAt
+        break
+      default:
+        return 0
+    }
+
+    if (aValue < bValue) {
+      return sortDirection === "asc" ? -1 : 1
+    }
+    if (aValue > bValue) {
+      return sortDirection === "asc" ? 1 : -1
+    }
+    return 0
+  })
+
+  const totalPages = Math.ceil(sortedProducts.length / pageSize)
   const startIndex = (currentPage - 1) * pageSize
   const endIndex = startIndex + pageSize
-  const paginatedProducts = filteredProducts.slice(startIndex, endIndex)
+  const paginatedProducts = sortedProducts.slice(startIndex, endIndex)
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+    } else {
+      setSortField(field)
+      setSortDirection("asc")
+    }
+    setCurrentPage(1)
+  }
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return <ChevronUp className="h-4 w-4 text-gray-300" />
+    }
+    return sortDirection === "asc" ? (
+      <ChevronUp className="h-4 w-4 text-gray-600" />
+    ) : (
+      <ChevronDown className="h-4 w-4 text-gray-600" />
+    )
+  }
 
   const handleSearchChange = (value: string) => {
     setSearchTerm(value)
     setCurrentPage(1)
-    setSelectedIds([]) // Reset selection on search
+    setSelectedIds([])
   }
 
   const handleFilterChange = (value: string) => {
     setFilterType(value)
     setCurrentPage(1)
-    setSelectedIds([]) // Reset selection on filter
+    setSelectedIds([])
   }
 
   const handlePageSizeChange = (value: string) => {
     setPageSize(Number(value))
     setCurrentPage(1)
-    setSelectedIds([]) // Reset selection on page size change
+    setSelectedIds([])
   }
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage)
-    setSelectedIds([]) // Reset selection when page changes
+    setSelectedIds([])
   }
 
   const handleEdit = (product: Product) => {
@@ -156,8 +229,7 @@ export function ProductTable({ products, onUpdate, onDelete, onBulkDelete }: Pro
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-600">
-            Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length}{" "}
-            products
+            Showing {startIndex + 1} to {Math.min(endIndex, sortedProducts.length)} of {sortedProducts.length} products
           </div>
           {selectedIds.length > 0 && (
             <AlertDialog>
@@ -218,10 +290,33 @@ export function ProductTable({ products, onUpdate, onDelete, onBulkDelete }: Pro
                   className="rounded border-gray-300"
                 />
               </TableHead>
-              <TableHead>Product Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Added</TableHead>
+              <TableHead className="cursor-pointer hover:bg-gray-50 select-none" onClick={() => handleSort("name")}>
+                <div className="flex items-center gap-1">
+                  Product Name
+                  <SortIcon field="name" />
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-gray-50 select-none" onClick={() => handleSort("type")}>
+                <div className="flex items-center gap-1">
+                  Type
+                  <SortIcon field="type" />
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer hover:bg-gray-50 select-none" onClick={() => handleSort("price")}>
+                <div className="flex items-center gap-1">
+                  Price
+                  <SortIcon field="price" />
+                </div>
+              </TableHead>
+              <TableHead
+                className="cursor-pointer hover:bg-gray-50 select-none"
+                onClick={() => handleSort("createdAt")}
+              >
+                <div className="flex items-center gap-1">
+                  Added
+                  <SortIcon field="createdAt" />
+                </div>
+              </TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>

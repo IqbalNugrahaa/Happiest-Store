@@ -266,6 +266,27 @@ export const transactionService = {
     }
 
     try {
+      // Get unique product names from transactions
+      const uniqueProductNames = [...new Set(transactions.map((t) => t.item_purchased))]
+
+      // Check which products already exist
+      const { data: existingProducts } = await supabase.from("products").select("name").in("name", uniqueProductNames)
+
+      const existingProductNames = new Set(existingProducts?.map((p) => p.name) || [])
+
+      // Create missing products with default values
+      const missingProductNames = uniqueProductNames.filter((name) => !existingProductNames.has(name))
+
+      if (missingProductNames.length > 0) {
+        const newProducts = missingProductNames.map((name) => ({
+          name,
+          type: "SHARING", // Default type
+          price: 0, // Default price, can be updated later
+        }))
+
+        await supabase.from("products").insert(newProducts)
+      }
+
       // Map the data to match database column names
       const formattedTransactions = transactions.map((t) => ({
         date: t.date,

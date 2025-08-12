@@ -17,7 +17,6 @@ import { useLanguage } from "@/contexts/language-context"
 interface ProductFormData {
   name: string
   type: string
-  quantity: number
   price: number
 }
 
@@ -26,29 +25,48 @@ interface ProductFormProps {
 }
 
 const productTypes = [
-  "Electronics",
-  "Clothing",
-  "Books",
-  "Home & Garden",
-  "Sports",
-  "Toys",
-  "Kitchenware",
-  "Stationery",
-  "Health & Beauty",
-  "Automotive",
-]
+  "SHARING",
+  "SHARING BIASA",
+  "SHARING ANTILIMIT",
+  "SHARING 8U",
+  "SHARING 4U",
+  "SHARING 2U",
+  "PRIVATE",
+  "SOSMED",
+  "EDUCATION",
+  "MUSIC",
+  "EDITING",
+  "GOOGLE STORAGE",
+  "FAMPLAN",
+  "INDPLAN",
+].sort((a, b) => a.localeCompare(b))
 
 export function ProductForm({ onSubmit }: ProductFormProps) {
   const [formData, setFormData] = useState<ProductFormData>({
     name: "",
     type: "",
-    quantity: 0,
     price: 0,
   })
   const [errors, setErrors] = useState<Partial<ProductFormData>>({})
   const saveStatus = useSaveStatus()
 
   const { t, language } = useLanguage()
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      type: "",
+      price: 0,
+    })
+    setErrors({})
+  }
+
+  const handleDialogClose = () => {
+    if (saveStatus.status === "success") {
+      resetForm()
+    }
+    saveStatus.closeDialog()
+  }
 
   const validateForm = (): boolean => {
     const newErrors: Partial<ProductFormData> = {}
@@ -59,10 +77,6 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
 
     if (!formData.type) {
       newErrors.type = "Product type is required"
-    }
-
-    if (formData.quantity < 0) {
-      newErrors.quantity = "Quantity must be 0 or greater"
     }
 
     if (formData.price <= 0) {
@@ -80,23 +94,13 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
       return
     }
 
-    await saveStatus.executeWithStatus(() => onSubmit({ ...formData, quantity: 0 }), {
+    await saveStatus.executeWithStatus(() => onSubmit(formData), {
       savingTitle: t("productForm.addingProduct"),
       savingMessage: t("dialog.saving.message"),
       successTitle: t("dialog.success.title"),
       successMessage: t("productForm.productAdded"),
       errorTitle: t("dialog.error.title"),
     })
-
-    // Reset form on success
-    if (saveStatus.status === "success") {
-      setFormData({
-        name: "",
-        type: "",
-        quantity: 0,
-        price: 0,
-      })
-    }
   }
 
   const handleInputChange = (field: keyof ProductFormData, value: string | number) => {
@@ -118,7 +122,7 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
     <div className="space-y-6">
       <SaveStatusDialog
         isOpen={saveStatus.isDialogOpen}
-        onClose={saveStatus.closeDialog}
+        onClose={handleDialogClose}
         status={saveStatus.status}
         title={saveStatus.title}
         message={saveStatus.message}
@@ -214,14 +218,7 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
           <Button type="submit" disabled={saveStatus.status === "saving"} className="flex-1 md:flex-none">
             {saveStatus.status === "saving" ? "Adding Product..." : "Add Product"}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setFormData({ name: "", type: "", quantity: 0, price: 0 })
-              setErrors({})
-            }}
-          >
+          <Button type="button" variant="outline" onClick={resetForm}>
             Clear Form
           </Button>
         </div>
